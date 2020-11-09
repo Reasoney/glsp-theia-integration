@@ -14,8 +14,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { isTaskNode } from "@eclipse-glsp-examples/workflow-sprotty/lib/model";
-import { NavigateAction } from "@eclipse-glsp/client";
-import { GLSPCommandHandler, GLSPContextMenu } from "@eclipse-glsp/theia-integration/lib/browser";
+import { NavigateAction, NavigateToTargetAction, NavigationTarget } from "@eclipse-glsp/client";
+import { DiagramWidget, GLSPCommandHandler, GLSPContextMenu } from "@eclipse-glsp/theia-integration/lib/browser";
 import { CommandContribution, CommandRegistry, MenuContribution, MenuModelRegistry } from "@theia/core";
 import { ApplicationShell } from "@theia/core/lib/browser";
 import { inject, injectable } from "inversify";
@@ -24,6 +24,7 @@ export namespace WorkflowNavigationCommands {
     export const NEXT_NODE = 'glsp-workflow-next-node';
     export const PREVIOUS_NODE = 'glsp-workflow-previous-node';
     export const DOCUMENTATION = 'glsp-workflow-documentation';
+    export const TO_ROOT = "glsp-workflow-root";
 }
 
 @injectable()
@@ -48,7 +49,27 @@ export class WorkflowNavigationCommandContribution implements CommandContributio
                 isEnabled: context => context.selectedElements.filter(isTaskNode).length === 1
             })
         );
+        commands.registerCommand({ id: WorkflowNavigationCommands.TO_ROOT, label: 'Go to Root' },
+            new GLSPCommandHandler(this.shell, {
+                actions: () => navigateToRootAction(this.shell)
+            })
+        );
+
+
     }
+}
+
+function navigateToRootAction(shell: ApplicationShell): NavigateToTargetAction[] {
+    const widget = (shell.activeWidget || shell.currentWidget);
+    if (widget instanceof DiagramWidget && widget.getResourceUri()) {
+        const uri = widget.getResourceUri();
+        if (uri) {
+            const navigationTarget = { uri: uri.toString() };
+            NavigationTarget.setElementIds(navigationTarget, ["task0"]);
+            return [new NavigateToTargetAction(navigationTarget)];
+        }
+    }
+    return [];
 }
 
 @injectable()
@@ -58,5 +79,6 @@ export class WorkflowNavigationMenuContribution implements MenuContribution {
         menus.registerMenuAction(WorkflowNavigationMenuContribution.NAVIGATION.concat('n'), { commandId: WorkflowNavigationCommands.NEXT_NODE, label: 'Next node' });
         menus.registerMenuAction(WorkflowNavigationMenuContribution.NAVIGATION.concat('n'), { commandId: WorkflowNavigationCommands.PREVIOUS_NODE, label: 'Previous node' });
         menus.registerMenuAction(WorkflowNavigationMenuContribution.NAVIGATION.concat('z'), { commandId: WorkflowNavigationCommands.DOCUMENTATION, label: 'Documentation' });
+        menus.registerMenuAction(WorkflowNavigationMenuContribution.NAVIGATION.concat('zz'), { commandId: WorkflowNavigationCommands.TO_ROOT, label: 'Push' });
     }
 }
